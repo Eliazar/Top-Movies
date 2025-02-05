@@ -34,6 +34,17 @@ class Movie(db.Model):
     img_url: Mapped[str]
 
 
+class EditForm(FlaskForm):
+    rating = StringField(
+        label="Your rating out of 10.",
+        validators=[DataRequired(message="Rating is required.")])
+    review = StringField(
+        label="Your review",
+        validators=[DataRequired(message="Your review is required.")]
+    )
+    submit = SubmitField("Submit")
+
+
 with app.app_context():
     db.create_all()
 
@@ -61,6 +72,22 @@ with app.app_context():
 def home():
     movies = db.session.execute(db.select(Movie).order_by(Movie.title)).scalars()
     return render_template("index.html", movies = movies)
+
+
+@app.route("/edit/<int:id>", methods=["GET", "POST"])
+def edit(id):
+    movie = db.get_or_404(Movie, id)
+    form = EditForm()
+    
+    if form.validate_on_submit():
+        movie.rating = form.rating.data
+        movie.review = form.review.data
+
+        db.session.commit()
+
+        return redirect(url_for('home'))
+    
+    return render_template("edit.html", movie = movie, form = form)
 
 
 if __name__ == '__main__':
