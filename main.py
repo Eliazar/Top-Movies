@@ -81,7 +81,13 @@ with app.app_context():
 
 @app.route("/")
 def home():
-    movies = db.session.execute(db.select(Movie).order_by(Movie.title)).scalars()
+    movies = db.session.execute(db.select(Movie).order_by(Movie.rating)).scalars().all()
+
+    for i in range(len(movies)):
+        movies[i].ranking = len(movies) - i
+
+    db.session.commit()
+
     return render_template("index.html", movies = movies)
 
 
@@ -142,7 +148,7 @@ def insert(id):
     db.session.add(new_movie)
     db.session.commit()
 
-    return redirect(url_for("home"))
+    return redirect(url_for("edit", id = new_movie.id))
 
 
 if __name__ == '__main__':
