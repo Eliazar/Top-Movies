@@ -6,6 +6,7 @@ from sqlalchemy import Integer, String, Float
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
+from utils import MovieHandler
 import requests
 
 app = Flask(__name__)
@@ -37,12 +38,22 @@ class Movie(db.Model):
 class EditForm(FlaskForm):
     rating = StringField(
         label="Your rating out of 10.",
-        validators=[DataRequired(message="Rating is required.")])
+        validators=[DataRequired(message="Rating is required.")]
+    )
     review = StringField(
         label="Your review",
         validators=[DataRequired(message="Your review is required.")]
     )
     submit = SubmitField("Submit")
+
+
+class CreateMovieForm(FlaskForm):
+    title = StringField(
+        label="Movie title",
+        validators=[DataRequired(message="Movie title is required.")]
+    )
+    submit = SubmitField(label="Add movie")
+
 
 
 with app.app_context():
@@ -70,7 +81,13 @@ with app.app_context():
 
 @app.route("/")
 def home():
-    movies = db.session.execute(db.select(Movie).order_by(Movie.title)).scalars()
+    movies = db.session.execute(db.select(Movie).order_by(Movie.rating)).scalars().all()
+
+    for i in range(len(movies)):
+        movies[i].ranking = len(movies) - i
+
+    db.session.commit()
+
     return render_template("index.html", movies = movies)
 
 
@@ -88,6 +105,50 @@ def edit(id):
         return redirect(url_for('home'))
     
     return render_template("edit.html", movie = movie, form = form)
+
+
+@app.route("/delete")
+def delete():
+    movie_id = request.args.get("id")
+    movie = db.get_or_404(Movie, movie_id)
+    db.session.delete(movie)
+    db.session.commit()
+
+    return redirect(url_for("home"))
+
+
+@app.route("/add", methods = ["GET", "POST"])
+def add():
+    create_movie_form = CreateMovieForm()
+    
+    if create_movie_form.validate_on_submit():
+        movie_handler = MovieHandler.MovieHandler()
+        movies = movie_handler.get_movies(create_movie_form.title.data)
+
+        return render_template("select.html", movies = movies)
+
+    return render_template("add.html", form = create_movie_form)
+
+
+@app.route("/insert/<int:id>")
+def insert(id):
+    movie_handler = MovieHandler.MovieHandler()
+    selected_movie = movie_handler.get_movie_detail(id)
+
+    new_movie = Movie(
+        title = selected_movie.get("title"),
+        year = selected_movie.get("release_date")[:4],
+        description = selected_movie.get("overview"),
+        rating = 0,
+        ranking = 0,
+        review = "No review yet",
+        img_url = f"{movie_handler.img_base_url}{movie_handler.img_poster_ratio}{selected_movie.get("poster_path")}"
+    )
+
+    db.session.add(new_movie)
+    db.session.commit()
+
+    return redirect(url_for("edit", id = new_movie.id))
 
 
 if __name__ == '__main__':
