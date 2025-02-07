@@ -37,12 +37,22 @@ class Movie(db.Model):
 class EditForm(FlaskForm):
     rating = StringField(
         label="Your rating out of 10.",
-        validators=[DataRequired(message="Rating is required.")])
+        validators=[DataRequired(message="Rating is required.")]
+    )
     review = StringField(
         label="Your review",
         validators=[DataRequired(message="Your review is required.")]
     )
     submit = SubmitField("Submit")
+
+
+class CreateMovieForm(FlaskForm):
+    title = StringField(
+        label="Movie title",
+        validators=[DataRequired(message="Movie title is required.")]
+    )
+    submit = SubmitField(label="Add movie")
+
 
 
 with app.app_context():
@@ -88,6 +98,22 @@ def edit(id):
         return redirect(url_for('home'))
     
     return render_template("edit.html", movie = movie, form = form)
+
+
+@app.route("/delete")
+def delete():
+    movie_id = request.args.get("id")
+    movie = db.get_or_404(Movie, movie_id)
+    db.session.delete(movie)
+    db.session.commit()
+
+    return redirect(url_for("home"))
+
+
+@app.route("/add")
+def add():
+    create_movie_form = CreateMovieForm()
+    return render_template("add.html", form = create_movie_form)
 
 
 if __name__ == '__main__':
