@@ -6,6 +6,7 @@ from sqlalchemy import Integer, String, Float
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
+from utils import MovieHandler
 import requests
 
 app = Flask(__name__)
@@ -110,10 +111,38 @@ def delete():
     return redirect(url_for("home"))
 
 
-@app.route("/add")
+@app.route("/add", methods = ["GET", "POST"])
 def add():
     create_movie_form = CreateMovieForm()
+    
+    if create_movie_form.validate_on_submit():
+        movie_handler = MovieHandler.MovieHandler()
+        movies = movie_handler.get_movies(create_movie_form.title.data)
+
+        return render_template("select.html", movies = movies)
+
     return render_template("add.html", form = create_movie_form)
+
+
+@app.route("/insert/<int:id>")
+def insert(id):
+    movie_handler = MovieHandler.MovieHandler()
+    selected_movie = movie_handler.get_movie_detail(id)
+
+    new_movie = Movie(
+        title = selected_movie.get("title"),
+        year = selected_movie.get("release_date")[:4],
+        description = selected_movie.get("overview"),
+        rating = 0,
+        ranking = 0,
+        review = "No review yet",
+        img_url = f"{movie_handler.img_base_url}{movie_handler.img_poster_ratio}{selected_movie.get("poster_path")}"
+    )
+
+    db.session.add(new_movie)
+    db.session.commit()
+
+    return redirect(url_for("home"))
 
 
 if __name__ == '__main__':
